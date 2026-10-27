@@ -375,18 +375,21 @@ function CommunitiesContent() {
 
               <button
                 onClick={(e) => handleToggleJoin(e, activeCommunity)}
-                className={`py-2 px-6 rounded-full text-xs font-bold transition shadow-md active:scale-95 ${
+                disabled={joinMutation.isPending && joinMutation.variables === activeCommunity.id}
+                className={`py-2 px-6 rounded-full text-xs font-bold transition shadow-md active:scale-95 cursor-pointer flex items-center justify-center min-w-[120px] ${
                   activeCommunity.isJoined
                     ? 'bg-transparent border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-200 hover:border-red-500 hover:text-red-400'
-                    : 'bg-[#FF9933] hover:bg-[#E68525] text-white shadow-[#FF9933]/20'
+                    : 'bg-[#FF9933] hover:bg-[#E68525] text-white text-force-white shadow-[#FF9933]/20'
                 }`}
               >
-                {activeCommunity.isJoined ? (
+                {joinMutation.isPending && joinMutation.variables === activeCommunity.id ? (
+                  <Loader2 size={14} className="animate-spin text-white" />
+                ) : activeCommunity.isJoined ? (
                   <span className="flex items-center gap-1.5">
                     <Check size={14} className="text-[#00C853]" /> Joined
                   </span>
                 ) : (
-                  'Join Community'
+                  <span className="text-white text-force-white">Join Community</span>
                 )}
               </button>
             </div>
@@ -582,18 +585,21 @@ function CommunitiesContent() {
 
                     <button
                       onClick={(e) => handleToggleJoin(e, c)}
-                      className={`py-2 px-5 rounded-full text-xs font-bold transition shrink-0 shadow-sm active:scale-95 ${
+                      disabled={joinMutation.isPending && joinMutation.variables === c.id}
+                      className={`py-2 px-5 rounded-full text-xs font-bold transition shrink-0 shadow-sm active:scale-95 cursor-pointer flex items-center justify-center min-w-[76px] ${
                         c.isJoined
                           ? 'bg-transparent border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 hover:border-red-500 hover:text-red-400'
-                          : 'bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-200 dark:text-black'
+                          : 'bg-[#0F172A] hover:bg-[#1E293B] text-white text-force-white dark:bg-white dark:hover:bg-slate-200 dark:text-black shadow-sm'
                       }`}
                     >
-                      {c.isJoined ? (
+                      {joinMutation.isPending && joinMutation.variables === c.id ? (
+                        <Loader2 size={13} className="animate-spin text-[#FF9933]" />
+                      ) : c.isJoined ? (
                         <span className="flex items-center gap-1">
                           <Check size={13} className="text-[#00C853]" /> Joined
                         </span>
                       ) : (
-                        'Join'
+                        <span className="text-white text-force-white dark:text-black">Join</span>
                       )}
                     </button>
                   </div>

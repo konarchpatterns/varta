@@ -409,12 +409,12 @@ function UserProfileContent() {
                     <button
                       onClick={() => followMutation.mutate()}
                       disabled={followMutation.isPending}
-                      className={`px-5 py-2 rounded-full text-xs font-bold transition active:scale-95 shadow-md ${
+                      className={`px-5 py-2 rounded-full text-xs font-bold transition active:scale-95 shadow-md cursor-pointer ${
                         profile.isFollowing
-                          ? 'border border-[#1E293B] hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400 text-slate-200'
+                          ? 'border border-slate-300 dark:border-[#1E293B] hover:border-red-500/50 hover:bg-red-500/10 hover:text-red-400 text-slate-700 dark:text-slate-200'
                           : profile.isPendingFollow
-                          ? 'bg-[#101D2D] text-slate-300'
-                          : 'bg-white hover:bg-slate-200 text-black'
+                          ? 'bg-slate-200 dark:bg-[#101D2D] text-slate-700 dark:text-slate-300'
+                          : 'bg-[#0F172A] hover:bg-[#1E293B] text-white text-force-white dark:bg-white dark:hover:bg-slate-200 dark:text-black'
                       }`}
                     >
                       {profile.isFollowing

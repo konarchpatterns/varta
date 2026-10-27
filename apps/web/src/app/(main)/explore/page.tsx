@@ -343,10 +343,10 @@ export default function ExplorePage() {
 
                   <button
                     onClick={(e) => toggleFollow(e, creator.username)}
-                    className={`py-1.5 px-3.5 rounded-full text-xs font-bold transition shrink-0 active:scale-95 ${
+                    className={`py-1.5 px-3.5 rounded-full text-xs font-bold transition shrink-0 active:scale-95 cursor-pointer ${
                       isFollowing
-                        ? 'bg-transparent border border-[#1E293B] text-slate-300 hover:border-red-500/50 hover:text-red-400'
-                        : 'bg-white hover:bg-slate-200 text-black shadow-sm'
+                        ? 'bg-transparent border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 hover:border-red-500/50 hover:text-red-400'
+                        : 'bg-[#0F172A] hover:bg-[#1E293B] text-white text-force-white dark:bg-white dark:hover:bg-slate-200 dark:text-black shadow-sm'
                     }`}
                   >
                     {isFollowing ? 'Following' : 'Follow'}
@@ -416,10 +416,10 @@ export default function ExplorePage() {
                     onClick={(e) =>
                       toggleJoinCommunity(e, comm.id, comm.isJoined || false)
                     }
-                    className={`py-1.5 px-4 rounded-full text-xs font-bold transition shrink-0 shadow-sm active:scale-95 ${
+                    className={`py-1.5 px-4 rounded-full text-xs font-bold transition shrink-0 shadow-sm active:scale-95 cursor-pointer ${
                       isJoined
-                        ? 'bg-transparent border border-[#1E293B] text-slate-300 hover:border-red-500/50 hover:text-red-400'
-                        : 'bg-white hover:bg-slate-200 text-black'
+                        ? 'bg-transparent border border-slate-300 dark:border-[#1E293B] text-slate-700 dark:text-slate-300 hover:border-red-500/50 hover:text-red-400'
+                        : 'bg-[#0F172A] hover:bg-[#1E293B] text-white text-force-white dark:bg-white dark:hover:bg-slate-200 dark:text-black shadow-sm'
                     }`}
                   >
                     {isJoined ? 'Joined' : 'Join'}
