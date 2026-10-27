@@ -39,6 +39,26 @@ npm run db:restore
 
 ---
 
+### Method 3: In Production Docker Deployment (Automatic or Manual)
+1. **Automatic on First Launch**:
+   `docker/docker-compose.prod.yml` automatically mounts `database_backup/varta_backup.sql` into `/docker-entrypoint-initdb.d/01-init.sql:ro`. On a fresh deployment server, the database initializes with all existing data automatically.
+
+2. **Manual Restore into Running Production Container**:
+   ```bash
+   docker exec -i varta-prod-postgres psql -U varta_user -d varta_db < database_backup/varta_backup.sql
+   ```
+
+---
+
+### Method 4: Cloud Managed Database (Supabase, Neon, AWS RDS, Railway, Render)
+If your production database is hosted on a cloud provider, restore directly using your `DATABASE_URL`:
+```bash
+# Direct psql connection string:
+psql "<YOUR_PRODUCTION_DATABASE_URL>" < database_backup/varta_backup.sql
+```
+
+---
+
 ## How to Take a New Backup
 To create a fresh backup at any time from your running database:
 ```bash

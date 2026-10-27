@@ -11,6 +11,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-varta_db}
     volumes:
       - varta_prod_pgdata:/var/lib/postgresql/data
+      - ../database_backup/varta_backup.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-varta_user} -d ${POSTGRES_DB:-varta_db}"]
       interval: 5s
