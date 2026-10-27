@@ -7,7 +7,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/database/package.json ./packages/database/
 COPY apps/worker/package.json ./apps/worker/
 
-RUN npm ci
+RUN npm ci && npm cache clean --force
 
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
@@ -29,7 +29,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/database/package.json ./packages/database/
 COPY apps/worker/package.json ./apps/worker/
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
