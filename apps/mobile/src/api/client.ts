@@ -958,18 +958,7 @@ export async function uploadMediaApi(file: {
   base64?: string;
 }): Promise<string> {
   const form = new FormData();
-
-  if (Platform.OS === 'web') {
-    const blob = await (await fetch(file.uri)).blob();
-    form.append('files', blob, file.name || 'upload.jpg');
-  } else {
-    const filename = file.name || file.uri.split('/').pop() || `upload-${Date.now()}.jpg`;
-    form.append('files', {
-      uri: file.uri,
-      name: filename,
-      type: file.type || 'image/jpeg',
-    } as any);
-  }
+  await appendFilePart(form, 'files', file, 'media');
 
   const data = await apiRequest<{ media: Array<{ url: string }> }>('/posts/media', {
     method: 'POST',
@@ -1038,44 +1027,77 @@ export async function updateProfileApi(dto: {
   await apiRequest('/users/profile', { method: 'PATCH', body: dto });
 }
 
-export async function uploadAvatarApi(file: { uri: string; name?: string; type?: string }) {
-  const form = new FormData();
+/**
+ * Build a FormData file part that works on native (uri) and web (blob).
+ * React Native needs a filename with a real extension — the API keeps the
+ * extension to store the file, and `file://…/ImagePicker/xyz` has none.
+ */
+async function appendFilePart(
+  form: FormData,
+  field: string,
+  file: { uri: string; name?: string; type?: string; base64?: string },
+  fallbackName: string,
+) {
+  const guessedExt = (file.type || '').includes('png')
+    ? 'png'
+    : (file.type || '').includes('webp')
+      ? 'webp'
+      : (file.type || '').includes('gif')
+        ? 'gif'
+        : 'jpg';
+
+  const name = file.name || `${fallbackName}-${Date.now()}.${guessedExt}`;
+  const type =
+    file.type ||
+    (guessedExt === 'png' ? 'image/png' : guessedExt === 'webp' ? 'image/webp' : 'image/jpeg');
+
   if (Platform.OS === 'web') {
     const blob = await (await fetch(file.uri)).blob();
-    form.append('file', blob, file.name || 'avatar.jpg');
-  } else {
-    form.append('file', {
-      uri: file.uri,
-      name: file.name || file.uri.split('/').pop() || 'avatar.jpg',
-      type: file.type || 'image/jpeg',
-    } as any);
+    form.append(field, blob, name);
+    return;
   }
-  const data = await apiRequest<{ avatarUrl: string }>('/users/avatar', {
-    method: 'POST',
-    body: form,
-    timeoutMs: 60000,
-  });
-  return data.avatarUrl;
+
+  form.append(field, { uri: file.uri, name, type } as any);
 }
 
-export async function uploadCoverApi(file: { uri: string; name?: string; type?: string }) {
+export async function uploadAvatarApi(file: {
+  uri: string;
+  name?: string;
+  type?: string;
+  base64?: string;
+}): Promise<string> {
   const form = new FormData();
-  if (Platform.OS === 'web') {
-    const blob = await (await fetch(file.uri)).blob();
-    form.append('file', blob, file.name || 'cover.jpg');
-  } else {
-    form.append('file', {
-      uri: file.uri,
-      name: file.name || file.uri.split('/').pop() || 'cover.jpg',
-      type: file.type || 'image/jpeg',
-    } as any);
-  }
-  const data = await apiRequest<{ coverUrl: string }>('/users/cover', {
+  await appendFilePart(form, 'file', file, 'avatar');
+
+  const data = await apiRequest<{ avatarUrl?: string; profile?: any }>('/users/avatar', {
     method: 'POST',
     body: form,
     timeoutMs: 60000,
   });
-  return data.coverUrl;
+
+  const url = data?.avatarUrl || data?.profile?.avatarUrl;
+  if (!url) throw new ApiError(500, 'Avatar upload failed — the server returned no URL');
+  return url;
+}
+
+export async function uploadCoverApi(file: {
+  uri: string;
+  name?: string;
+  type?: string;
+  base64?: string;
+}): Promise<string> {
+  const form = new FormData();
+  await appendFilePart(form, 'file', file, 'cover');
+
+  const data = await apiRequest<{ coverUrl?: string; profile?: any }>('/users/cover', {
+    method: 'POST',
+    body: form,
+    timeoutMs: 60000,
+  });
+
+  const url = data?.coverUrl || data?.profile?.coverUrl;
+  if (!url) throw new ApiError(500, 'Cover upload failed — the server returned no URL');
+  return url;
 }
 
 export async function updatePrivacyApi(isPrivate: boolean) {

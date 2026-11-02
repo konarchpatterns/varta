@@ -214,3 +214,34 @@ the server" for everyone except you.
   yellow banner (demo mode).
 - Your Fast2SMS key is configured and delivered for real in testing
   (`[Fast2SMS] Successfully sent SMS OTP … Request ID: SCYD7i8CtJW3zjv`).
+
+## Profile picture / cover picture upload
+
+**Why it failed on mobile:** the uploads were fire-and-forget. The picker showed a
+`data:` preview, the upload promise had an empty `.catch()`, and on Save the code
+explicitly skipped any value starting with `data:` — so on a phone (where the
+preview is always `data:`/`file://`) nothing was ever sent to the server, and no
+error was shown.
+
+**Fixes**
+- `uploadAvatarApi` / `uploadCoverApi` / `uploadMediaApi` share one `appendFilePart`
+  helper that always sends a filename with a real extension (`avatar-<ts>.jpg`) and
+  a proper MIME type — required by React Native's FormData, and by the API's
+  extension whitelist (Multer silently drops a file named `…/ImagePicker/xyz`).
+- Uploads are awaited, tracked in state (`uploadedAvatar` / `uploadedCover`) and
+  reflected immediately via `updateUser()`, so the avatar/banner change the moment
+  the upload finishes — even if you close the modal without pressing Save.
+- Errors are surfaced in the existing toast (“Avatar upload failed: …”) instead of
+  being swallowed; the Save button shows “Uploading avatar…/cover…” while busy.
+- Save now uses the uploaded URL (or a manually typed `https://` URL), never the
+  `data:` preview.
+
+**Verified against the running API** (multipart, same shape the app sends):
+```
+POST /users/avatar  → 201 {"avatarUrl":"…/uploads/avatars/<uuid>.png"}
+POST /users/cover   → 201 {"coverUrl":"…/uploads/covers/<uuid>.png"}
+GET  <coverUrl>     → 200 image/png
+GET  /auth/me       → profile.avatarUrl / profile.coverUrl updated
+```
+Note: the returned URL is built from `MEDIA_PUBLIC_URL`, so on the VPS it must be
+`https://varta.kevindevops.online/uploads` (it is, in the production template).

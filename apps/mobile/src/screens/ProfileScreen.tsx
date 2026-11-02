@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Avatar } from '../components/common/Avatar';
 import {
@@ -156,6 +157,43 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [showBannerUrlInput, setShowBannerUrlInput] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccessToast, setSaveSuccessToast] = useState<string | null>(null);
+  // urls already uploaded to the server for this edit session
+  const [uploadedAvatar, setUploadedAvatar] = useState<string | null>(null);
+  const [uploadedCover, setUploadedCover] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState<'avatar' | 'banner' | null>(null);
+
+  const notify = (msg: string) => {
+    setSaveSuccessToast(msg);
+    setTimeout(() => setSaveSuccessToast(null), 3500);
+  };
+
+  /** Upload a picked/captured image and remember the hosted URL. */
+  const uploadImage = async (target: 'avatar' | 'banner', asset: { uri: string; type?: string }) => {
+    setIsUploadingImage(target);
+    try {
+      const url =
+        target === 'avatar'
+          ? await uploadAvatarApi({ uri: asset.uri, type: asset.type })
+          : await uploadCoverApi({ uri: asset.uri, type: asset.type });
+
+      if (target === 'avatar') {
+        setUploadedAvatar(url);
+        setEditAvatar(url);
+      } else {
+        setUploadedCover(url);
+        setEditBanner(url);
+      }
+      // reflect it immediately in the app (header avatar, banner)
+      updateUser(target === 'avatar' ? { avatar: url } : { bannerImage: url });
+      notify(`${target === 'avatar' ? 'Avatar' : 'Cover'} updated ✅`);
+      return url;
+    } catch (err: any) {
+      notify(err?.message || `${target === 'avatar' ? 'Avatar' : 'Cover'} upload failed`);
+      return null;
+    } finally {
+      setIsUploadingImage(null);
+    }
+  };
 
   // Info / Domain Modal State
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -193,27 +231,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const finalUri = asset.base64
+        const previewUri = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
 
-        if (target === 'avatar') {
-          setEditAvatar(finalUri);
-        } else {
-          setEditBanner(finalUri);
-        }
-        setSaveSuccessToast(`${target === 'avatar' ? 'Avatar' : 'Cover'} loaded from device 📷`);
-        setTimeout(() => setSaveSuccessToast(null), 3000);
+        // instant preview while the upload runs
+        if (target === 'avatar') setEditAvatar(previewUri);
+        else setEditBanner(previewUri);
 
-        // Upload straight to the profile endpoints so it persists on the server
-        const uploader = target === 'avatar' ? uploadAvatarApi : uploadCoverApi;
-        uploader({ uri: asset.uri, type: asset.mimeType || 'image/jpeg' })
-          .then((remoteUrl) => {
-            if (!remoteUrl) return;
-            if (target === 'avatar') setEditAvatar(remoteUrl);
-            else setEditBanner(remoteUrl);
-          })
-          .catch(() => {});
+        // upload immediately so the change survives closing the modal
+        await uploadImage(target, { uri: asset.uri, type: asset.mimeType || 'image/jpeg' });
         return;
       }
     } catch (err) {
@@ -229,15 +256,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         const file = e.target.files?.[0];
         if (file) {
           const reader = new FileReader();
-          reader.onload = (event) => {
+          reader.onload = async (event) => {
             const resultUrl = event.target?.result as string;
-            if (target === 'avatar') {
-              setEditAvatar(resultUrl);
-            } else {
-              setEditBanner(resultUrl);
-            }
-            setSaveSuccessToast(`${target === 'avatar' ? 'Avatar' : 'Cover'} loaded from device 📷`);
-            setTimeout(() => setSaveSuccessToast(null), 3000);
+            if (target === 'avatar') setEditAvatar(resultUrl);
+            else setEditBanner(resultUrl);
+            await uploadImage(target, { uri: resultUrl, type: file.type });
           };
           reader.readAsDataURL(file);
         }
@@ -267,17 +290,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
-        const finalUri = asset.base64
+        const previewUri = asset.base64
           ? `data:${asset.mimeType || 'image/jpeg'};base64,${asset.base64}`
           : asset.uri;
 
-        if (target === 'avatar') {
-          setEditAvatar(finalUri);
-        } else {
-          setEditBanner(finalUri);
-        }
-        setSaveSuccessToast('Photo captured with camera! 📸');
-        setTimeout(() => setSaveSuccessToast(null), 3000);
+        if (target === 'avatar') setEditAvatar(previewUri);
+        else setEditBanner(previewUri);
+
+        await uploadImage(target, { uri: asset.uri, type: asset.mimeType || 'image/jpeg' });
       }
     } catch (err) {
       console.warn('Camera error:', err);
@@ -293,6 +313,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setEditBanner(user?.bannerImage || '');
     setShowAvatarUrlInput(false);
     setShowBannerUrlInput(false);
+    setUploadedAvatar(null);
+    setUploadedCover(null);
     setIsEditModalOpen(true);
   };
 
@@ -307,13 +329,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         website: editWebsite.trim(),
       });
 
-      // Avatar / cover changes are already uploaded by their own endpoints
-      if (editAvatar && editAvatar !== user?.avatar && !editAvatar.startsWith('data:')) {
-        updateUser({ avatar: editAvatar });
-      }
-      if (editBanner && editBanner !== user?.bannerImage && !editBanner.startsWith('data:')) {
-        updateUser({ bannerImage: editBanner });
-      }
+      // Avatar / cover: prefer the uploaded URL, otherwise a manually typed http(s) URL
+      const avatarUrl =
+        uploadedAvatar ||
+        (editAvatar && /^https?:\/\//.test(editAvatar) ? editAvatar : null);
+      const coverUrl =
+        uploadedCover ||
+        (editBanner && /^https?:\/\//.test(editBanner) ? editBanner : null);
+
+      if (avatarUrl) updateUser({ avatar: avatarUrl });
+      if (coverUrl) updateUser({ bannerImage: coverUrl });
 
       updateUser({
         name: editName.trim() || user?.name || '',
@@ -621,7 +646,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   activeOpacity={0.8}
                 >
                   <Text style={styles.saveProfileBtnText}>
-                    {isSaving ? 'Saving...' : 'Save'}
+                    {isUploadingImage
+                      ? `Uploading ${isUploadingImage === 'avatar' ? 'avatar' : 'cover'}…`
+                      : isSaving
+                        ? 'Saving...'
+                        : 'Save'}
                   </Text>
                 </TouchableOpacity>
               </View>
