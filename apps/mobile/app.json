@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "VARTA",
+    "slug": "varta-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "primaryColor": "#FF6B00",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.varta.mobile"
+    },
+    "android": {
+      "package": "com.varta.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#FF6B00",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    }
+  }
+}
