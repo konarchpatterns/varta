@@ -22,11 +22,18 @@ import { PostItem, PaginatedResponse, MediaType } from '@varta/shared';
 
 export default function HomePage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, isInitialized } = useAuthStore();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('for-you');
   const [searchQuery, setSearchQuery] = useState('');
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // When user is not logged in, redirect to welcome / splash screen
+  useEffect(() => {
+    if (isInitialized && !user) {
+      router.replace('/');
+    }
+  }, [isInitialized, user, router]);
 
   // Fetch unread notifications count
   const { data: unreadNotificationsData } = useQuery<{ count: number; unreadCount: number }>({
@@ -133,7 +140,7 @@ export default function HomePage() {
     initialPageParam: undefined,
     getNextPageParam: (lastPage) =>
       lastPage?.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined,
-    enabled: activeTab !== 'following' || !!user,
+    enabled: !!user && (activeTab !== 'following' || !!user),
   });
 
   // Automatically fetch next page on scroll down
@@ -279,6 +286,15 @@ export default function HomePage() {
       : activeTab === 'for-you' || activeTab === 'india-trends' || activeTab === 'travel'
       ? mockShowcasePosts
       : [];
+
+  // Show loading indicator until user session is confirmed; redirects guests to welcome screen
+  if (!isInitialized || !user) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-[#050B14] flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[#FF9933]" />
+      </div>
+    );
+  }
 
   return (
     <MainLayout>

@@ -27,15 +27,45 @@ async function bootstrap() {
   );
 
   // CORS Configuration
-  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
-    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  //
+  // The mobile app (Expo web, emulator, LAN device) has no fixed origin, and
+  // native apps do not send an Origin header at all. Requests that do send one
+  // are allowed when it is listed in CORS_ALLOWED_ORIGINS or when it is a
+  // loopback / private-network / Expo dev address. Anything else is rejected.
+  const configuredOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
     : ['http://localhost:3000', 'http://127.0.0.1:3000'];
 
+  const isDevFriendlyOrigin = (origin: string): boolean => {
+    if (configuredOrigins.includes(origin) || configuredOrigins.includes('*')) return true;
+    try {
+      const { hostname, protocol } = new URL(origin);
+      if (protocol !== 'http:' && protocol !== 'https:') return false;
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+      // LAN addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) + expo tunnels
+      if (/^(10|127)\./.test(hostname)) return true;
+      if (/^192\.168\./.test(hostname)) return true;
+      if (/^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+      // hosted previews / tunnels used during development & review
+      if (/\.(exp\.direct|expo\.app|expo\.dev|ngrok\.io|ngrok-free\.app|trycloudflare\.com|vercel\.app|netlify\.app)$/.test(hostname)) {
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   app.enableCors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true); // native apps / curl
+      return callback(null, isDevFriendlyOrigin(origin));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'ngrok-skip-browser-warning'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
+    maxAge: 86400,
   });
 
   // Static uploads directory serving

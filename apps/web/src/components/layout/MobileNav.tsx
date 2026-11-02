@@ -182,7 +182,7 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenCompose }) => {
 
         {/* Center: VARTA Logo with Text & Tagline */}
         <Link
-          href="/home"
+          href={user ? '/home' : '/'}
           className="flex items-center justify-center hover:opacity-95 transition"
         >
           <VartaLogo size={28} showText={true} showTagline={true} />
@@ -388,9 +388,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({ onOpenCompose }) => {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#050B14]/95 backdrop-blur-lg border-t border-[#1E293B] flex items-center justify-around py-2.5 px-3">
         {/* Home */}
         <Link
-          href="/home"
+          href={user ? '/home' : '/'}
           className={`p-2 transition ${
-            pathname === '/home' ? 'text-[#FF9933]' : 'text-slate-400'
+            pathname === '/home' || (pathname === '/' && !user) ? 'text-[#FF9933]' : 'text-slate-400'
           }`}
         >
           <Home

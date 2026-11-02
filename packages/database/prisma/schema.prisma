@@ -182,6 +182,13 @@ model Post {
   quoteCount   Int       @default(0)
   bookmarkCount Int      @default(0)
 
+  // Interaction settings chosen by the author
+  replySettings    String?   // anyone | nobody | followers | following | mentioned | custom
+  allowQuotePosts  Boolean   @default(true)
+  replyRuleFollowers  Boolean @default(false)
+  replyRuleFollowing  Boolean @default(false)
+  replyRuleMentioned  Boolean @default(false)
+
   // Status & Timestamps
   isEdited     Boolean   @default(false)
   deletedAt    DateTime?

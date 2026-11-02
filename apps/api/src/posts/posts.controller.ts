@@ -161,6 +161,13 @@ export class PostsController {
     return this.postsService.getPostById(id, viewer?.id);
   }
 
+  @Get(':id/interaction')
+  @UseGuards(OptionalJwtAuthGuard)
+  @ApiOperation({ summary: 'Reply/quote permission state for the current viewer' })
+  async getInteractionState(@Param('id') id: string, @CurrentUser() viewer: any) {
+    return this.postsService.getInteractionState(id, viewer?.id);
+  }
+
   @Get(':id/replies')
   @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({ summary: 'Get replies to post' })

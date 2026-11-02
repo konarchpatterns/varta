@@ -79,7 +79,7 @@ export const LeftNav: React.FC<LeftNavProps> = ({ onOpenCompose }) => {
   }, [user, queryClient]);
 
   const navItems = [
-    { label: 'Home', href: '/home', icon: Home },
+    { label: 'Home', href: user ? '/home' : '/', icon: Home },
     { label: 'Explore', href: '/explore', icon: Search },
     {
       label: 'Notifications',
@@ -114,7 +114,7 @@ export const LeftNav: React.FC<LeftNavProps> = ({ onOpenCompose }) => {
       <div className="flex flex-col gap-3">
         {/* Brand Logo */}
         <Link
-          href="/home"
+          href={user ? '/home' : '/'}
           className="flex items-center gap-2 p-2 hover:bg-slate-100 dark:hover:bg-[#0B1422] rounded-2xl transition w-fit xl:w-full"
         >
           <VartaLogo
@@ -136,7 +136,7 @@ export const LeftNav: React.FC<LeftNavProps> = ({ onOpenCompose }) => {
               : item.href === '/settings'
               ? pathname === '/settings' && currentTab !== 'premium'
               : pathname === item.href ||
-                (item.href !== '/home' && pathname.startsWith(item.href));
+                (item.href !== '/home' && item.href !== '/' && pathname.startsWith(item.href));
 
             return (
               <Link

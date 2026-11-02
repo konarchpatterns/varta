@@ -316,7 +316,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       setApiToken(null);
       set({ user: null, token: null });
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
   },

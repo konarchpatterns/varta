@@ -279,9 +279,14 @@ export const PostComposer: React.FC<PostComposerProps> = ({
         parentId: parentId || null,
         groupId: groupId || null,
         ...(finalMediaUrls.length > 0 && { mediaUrls: finalMediaUrls }),
+        // The API expects "anyone" | "nobody" | custom rules as a JSON array
         replySettings:
           interactionSettings.replyMode === 'custom'
-            ? JSON.stringify(interactionSettings.allowedReplyRules)
+            ? JSON.stringify(
+                Object.entries(interactionSettings.allowedReplyRules)
+                  .filter(([key, value]) => key !== 'lists' && value === true)
+                  .map(([key]) => key),
+              )
             : interactionSettings.replyMode,
         allowQuotePosts: interactionSettings.allowQuotePosts,
       };

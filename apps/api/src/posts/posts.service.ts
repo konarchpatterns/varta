@@ -24,6 +24,74 @@ export class PostsService {
     return Array.from(new Set(matches.map((m) => m.slice(1).toLowerCase())));
   }
 
+  /**
+   * Reply / quote permissions are sent by the clients as:
+   *   replySettings: 'anyone' | 'nobody' | 'custom'
+   *   allowQuotePosts: boolean
+   * and for 'custom' the enabled rules arrive as a JSON array, e.g.
+   *   ["followers","following","mentioned"]
+   */
+  private parseReplySettings(dto: CreatePostDto) {
+    const raw = (dto as any).replySettings;
+    const allowQuotePosts = (dto as any).allowQuotePosts;
+
+    let mode: 'anyone' | 'nobody' | 'custom' = 'anyone';
+    let rules: string[] = [];
+
+    if (typeof raw === 'string' && raw.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) rules = parsed.map((r) => String(r));
+      } catch {
+        rules = [];
+      }
+      mode = rules.length > 0 ? 'custom' : 'anyone';
+    } else if (typeof raw === 'string' && ['anyone', 'nobody', 'custom'].includes(raw)) {
+      mode = raw as any;
+    }
+
+    return {
+      replySettings: mode,
+      allowQuotePosts: allowQuotePosts === undefined ? true : Boolean(allowQuotePosts),
+      replyRuleFollowers: rules.includes('followers'),
+      replyRuleFollowing: rules.includes('following'),
+      replyRuleMentioned: rules.includes('mentioned'),
+    };
+  }
+
+  /** true when `viewerId` is allowed to reply to `post` */
+  async canReply(
+    post: { id: string; authorId: string; replySettings?: string | null; replyRuleFollowers?: boolean; replyRuleFollowing?: boolean; replyRuleMentioned?: boolean },
+    viewerId?: string,
+  ) {
+    if (!viewerId) return { allowed: false, reason: 'Sign in to reply' };
+    if (viewerId === post.authorId) return { allowed: true };
+    if (post.replySettings === 'nobody') {
+      return { allowed: false, reason: 'The author has limited who can reply to this post.' };
+    }
+    if (!post.replySettings || post.replySettings === 'anyone') return { allowed: true };
+
+    const [followsAuthor, authorFollowsViewer, mentions] = await Promise.all([
+      this.prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: viewerId, followingId: post.authorId } },
+      }),
+      this.prisma.follow.findUnique({
+        where: { followerId_followingId: { followerId: post.authorId, followingId: viewerId } },
+      }),
+      this.prisma.mention.findFirst({ where: { postId: post.id, userId: viewerId } }),
+    ]);
+
+    const allowed =
+      (post.replyRuleFollowers && authorFollowsViewer) ||
+      (post.replyRuleFollowing && followsAuthor) ||
+      (post.replyRuleMentioned && !!mentions) ||
+      (post.replySettings === 'custom' && !!mentions);
+
+    return allowed
+      ? { allowed: true }
+      : { allowed: false, reason: 'The author has limited who can reply to this post.' };
+  }
+
   async createPost(authorId: string, dto: CreatePostDto) {
     const content = (dto.content || '').trim();
 
@@ -34,6 +102,18 @@ export class PostsService {
       });
       if (!parent || parent.deletedAt) {
         throw new NotFoundException('Parent post not found');
+      }
+      const permission = await this.canReply(parent as any, authorId);
+      if (!permission.allowed) {
+        throw new ForbiddenException(permission.reason || 'You cannot reply to this post');
+      }
+    }
+
+    // Verify quote permission
+    if (dto.quotePostId) {
+      const quoted = await this.prisma.post.findUnique({ where: { id: dto.quotePostId } });
+      if (quoted && (quoted as any).allowQuotePosts === false) {
+        throw new ForbiddenException('The author has disabled quote posts for this post');
       }
     }
 
@@ -68,6 +148,7 @@ export class PostsService {
           parentId: dto.parentId,
           quotePostId: dto.quotePostId,
           repostOfId: dto.repostOfId,
+          ...this.parseReplySettings(dto),
           // Attach media if provided
           ...(dto.mediaUrls && dto.mediaUrls.length > 0 && {
             media: {
@@ -206,6 +287,27 @@ export class PostsService {
     });
 
     return this.formatPostResponse(post, authorId);
+  }
+
+  /** Reply/quote permission state for a viewer (used by the UI to hide the reply box). */
+  async getInteractionState(postId: string, viewerId?: string) {
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post || post.deletedAt) {
+      throw new NotFoundException('Post not found');
+    }
+    const permission = await this.canReply(post as any, viewerId);
+    return {
+      postId,
+      replySettings: (post as any).replySettings || 'anyone',
+      allowQuotePosts: (post as any).allowQuotePosts !== false,
+      replyRules: {
+        followers: Boolean((post as any).replyRuleFollowers),
+        following: Boolean((post as any).replyRuleFollowing),
+        mentioned: Boolean((post as any).replyRuleMentioned),
+      },
+      canReply: permission.allowed,
+      replyRestrictionReason: permission.reason || null,
+    };
   }
 
   async getPostById(postId: string, viewerId?: string) {
@@ -571,6 +673,14 @@ export class PostsService {
       createdAt: post.createdAt.toISOString(),
       updatedAt: post.updatedAt.toISOString(),
       isEdited: post.isEdited,
+      replySettings: post.replySettings || 'anyone',
+      allowQuotePosts: post.allowQuotePosts !== false,
+      replyRules: {
+        followers: Boolean(post.replyRuleFollowers),
+        following: Boolean(post.replyRuleFollowing),
+        mentioned: Boolean(post.replyRuleMentioned),
+      },
+      canReply: true,
       media: (post.media || []).map((m: any) => ({
         id: m.id,
         url: m.url,

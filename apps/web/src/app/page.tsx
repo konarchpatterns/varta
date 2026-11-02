@@ -20,10 +20,17 @@ export default function SplashPage() {
   const router = useRouter();
   const { user, isInitialized, login } = useAuthStore();
   const [isDemoLoading, setIsDemoLoading] = useState(false);
+  const [hasStoredToken, setHasStoredToken] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !!localStorage.getItem('varta_token')) {
+      setHasStoredToken(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (isInitialized && user) {
-      router.push('/home');
+      router.replace('/home');
     }
   }, [user, isInitialized, router]);
 
@@ -31,7 +38,7 @@ export default function SplashPage() {
     setIsDemoLoading(true);
     try {
       await login({ identifier: 'aarav_sharma', password: 'Varta@2026Secure!' });
-      router.push('/home');
+      router.replace('/home');
     } catch {
       router.push('/login');
     } finally {
@@ -71,6 +78,14 @@ export default function SplashPage() {
       desc: 'A respectful and inclusive platform for meaningful conversations.',
     },
   ];
+
+  if ((isInitialized && user) || (hasStoredToken && !isInitialized)) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-[#FF8A00]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white flex flex-col justify-between text-slate-900 selection:bg-[#FF8A00]/20 selection:text-[#EA580C] relative">

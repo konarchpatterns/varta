@@ -37,10 +37,14 @@ export class Msg91Service {
         `[MSG91] MSG91_AUTH_KEY or MSG91_TEMPLATE_ID is missing in .env. ` +
         `Simulating SMS delivery for ${fullPhone}. Security code: ${otp}`,
       );
+      // Not configured: the OTP is only in the server log. Never report success,
+      // otherwise the app tells the user "code sent" and they wait for an SMS
+      // that will never arrive.
       return {
-        success: true,
+        success: false,
         simulated: true,
-        message: 'SMS service not yet configured in .env (code logged to server console)',
+        message:
+          'SMS gateway is not configured on the server (MSG91_AUTH_KEY / MSG91_TEMPLATE_ID or FAST2SMS_API_KEY missing)',
       };
     }
 
@@ -102,7 +106,7 @@ export class Msg91Service {
     const mobileDigits = fullPhone.replace(/\D/g, '');
 
     if (!authKey) {
-      return { success: true, simulated: true, message: 'MSG91 not configured' };
+      return { success: false, simulated: true, message: 'MSG91 not configured' };
     }
 
     try {

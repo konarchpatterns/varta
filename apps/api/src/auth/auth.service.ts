@@ -1233,12 +1233,34 @@ export class AuthService {
       smsResult = await this.msg91Service.sendOtp(fullPhone, otp);
     }
 
+    const masked = this.maskPhone(fullPhone);
+
+    // No SMS provider configured → do not pretend the code was sent. The OTP is
+    // in the server log and in the response when DEV_OTP_EXPOSE=true.
+    if (!smsResult.success) {
+      const expose = this.configService.get<string>('DEV_OTP_EXPOSE') === 'true';
+      this.logger.warn(
+        `[Phone OTP] SMS not sent for ${masked}: ${smsResult.message}. Code: ${otp}`,
+      );
+      return {
+        success: true,
+        message: expose
+          ? `SMS gateway not configured — demo mode. Use code ${otp} for ${masked}.`
+          : `SMS could not be sent to ${masked} (gateway not configured on the server). Check the server log for the code.`,
+        phone: fullPhone,
+        countryCode: dto.countryCode,
+        isSmsConfigured: false,
+        devOtp: expose ? otp : undefined,
+        expiresInSeconds: 600,
+      };
+    }
+
     return {
       success: true,
-      message: `A 6-digit verification code has been dispatched to ${this.maskPhone(fullPhone)}`,
+      message: `A 6-digit verification code has been dispatched to ${masked}`,
       phone: fullPhone,
       countryCode: dto.countryCode,
-      isSmsConfigured: !smsResult.simulated,
+      isSmsConfigured: true,
       expiresInSeconds: 600,
     };
   }
